@@ -2,6 +2,7 @@ const {
     Given, Then,
 } = require('cucumber');
 const { expect } = require('chai');
+const { Database } = require('arangojs');
 
 Given(/^I stop (\d+) holder[s]*$/, { timeout: 3000000 }, function (holdersToStop) {
     expect(holdersToStop).to.be.greaterThan(0);
@@ -31,6 +32,7 @@ Given(/^I remember stopped holder[s]*$/, async function () {
 });
 
 Given(/^I wait for litigation initiation$/, { timeout: 3000000 }, function (done) {
+    console.log('I wait for litigation initiation');
     expect(this.state.bootstraps.length).to.be.greaterThan(0);
     expect(this.state.nodes.length).to.be.greaterThan(0);
 
@@ -58,6 +60,7 @@ Given(/^I start stopped holder[s]*$/, { timeout: 3000000 }, function () {
 });
 
 Then(/^(\d+) holder[s]* should answer litigation$/, { timeout: 3000000 }, async function (holderCount) {
+    console.log('1 holder should answer litigation');
     expect(holderCount).to.be.greaterThan(0);
     expect(holderCount).to.be.lessThan(4);
     expect(this.state.bootstraps.length).to.be.greaterThan(0);
@@ -108,6 +111,7 @@ Then(/^Litigator should have started replacement for penalized holder[s]*$/, { t
 });
 
 Then(/^I wait for (\d+) replacement replication[s] to finish$/, { timeout: 3000000 }, async function (numberOfReplications) {
+    console.log('I wait for 4 replacement replications to finish');
     expect(this.state.bootstraps.length, 'No bootstrap nodes').to.be.greaterThan(0);
     expect(this.state.nodes.length, 'No started nodes').to.be.greaterThan(0);
     expect(numberOfReplications).to.be.greaterThan(0);
@@ -132,6 +136,7 @@ Then(/^I wait for (\d+) replacement replication[s] to finish$/, { timeout: 30000
 });
 
 Then(/^I wait for replacement to be completed$/, { timeout: 3000000 }, function (done) {
+    console.log('I wait for replacement to be completed');
     expect(this.state.bootstraps.length).to.be.greaterThan(0);
     expect(this.state.nodes.length).to.be.greaterThan(0);
 
@@ -155,4 +160,38 @@ Given(/^I wait for challenges to start$/, { timeout: 3000000 }, async function (
             }));
         });
     return Promise.all(challenges);
+});
+
+Given(/^I corrupt (\d+) holder's database ot_vertices collection$/, { timeout: 3000000 }, function (holdersToDrop) {
+    console.log('I corrupt 1 holder\'s database ot_vertices collection');
+    expect(holdersToDrop).to.be.greaterThan(0);
+    expect(holdersToDrop).to.be.lessThan(4);
+    expect(this.state.bootstraps.length).to.be.greaterThan(0);
+    expect(this.state.nodes.length).to.be.greaterThan(0);
+
+    const droppedNodes = [];
+    this.state.nodes.filter(node => node.state.takenBids.length > 0).slice(0, holdersToDrop)
+        .forEach(async (node) => {
+            droppedNodes.push(node);
+
+            const {
+                database: databaseName,
+                username,
+                password,
+            } = node.options.nodeConfiguration.database;
+
+            const systemDb = new Database();
+            systemDb.useBasicAuth(username, password);
+            systemDb.useDatabase(databaseName);
+
+            await systemDb.query(`FOR v IN ot_vertices
+            UPDATE { _key: v._key, 
+                '${this.state.lastImport.data_set_id}': {
+                    data:
+                        REVERSE(v['${this.state.lastImport.data_set_id}'].data)
+                       } 
+            } IN ot_vertices`);
+        });
+
+    this.state.lastStoppedNodeIds = droppedNodes;
 });

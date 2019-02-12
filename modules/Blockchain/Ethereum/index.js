@@ -812,23 +812,6 @@ class Ethereum {
     }
 
     /**
-    * Gets status of the offer
-    * @param importId
-    * @return {Promise<any>}
-    */
-    getOfferStatus(importId) {
-        return new Promise((resolve, reject) => {
-            this.log.trace(`Asking for ${importId} offer status`);
-            this.biddingContract.methods.getOfferStatus(importId).call()
-                .then((res) => {
-                    resolve(res);
-                }).catch((e) => {
-                    reject(e);
-                });
-        });
-    }
-
-    /**
      * Deposit tokens to profile
      * @param blockchainIdentity
      * @param amount
@@ -1228,6 +1211,34 @@ class Ethereum {
         this.log.trace(`getLitigationTimestamp(offerId=${offerId}, holderIdentity=${holderIdentity})`);
         return this.litigationStorageContract
             .methods.getLitigationTimestamp(offerId, holderIdentity).call({
+                from: this.config.wallet_address,
+            });
+    }
+
+    /**
+     * Gets last litigation difficulty
+     * @param offerId - Offer ID
+     * @param holderIdentity - Holder identity
+     * @return {Promise<any>}
+     */
+    async getLitigationDifficulty(offerId, holderIdentity) {
+        this.log.trace(`getLitigationDifficulty(offerId=${offerId}, holderIdentity=${holderIdentity})`);
+        return this.litigationStorageContract
+            .methods.getLitigationReplacementDifficulty(offerId, holderIdentity).call({
+                from: this.config.wallet_address,
+            });
+    }
+
+    /**
+     * Gets last litigation replacement task
+     * @param offerId - Offer ID
+     * @param holderIdentity - Holder identity
+     * @return {Promise<any>}
+     */
+    async getLitigationReplacementTask(offerId, holderIdentity) {
+        this.log.trace(`getLitigationReplacementTask(offerId=${offerId}, holderIdentity=${holderIdentity})`);
+        return this.litigationStorageContract
+            .methods.getLitigationReplacementTask(offerId, holderIdentity).call({
                 from: this.config.wallet_address,
             });
     }

@@ -24,7 +24,10 @@ contract Litigation {
     }
 
 	/*    ----------------------------- LITIGATION -----------------------------     */
-    event LitigationStatusChanged(bytes32 offerId, address holderIdentity, LitigationStorage.LitigationStatus status);
+    event LitigationInitiated(bytes32 offerId, address holderIdentity, uint requestedDataIndex);
+    event LitigationAnswered(bytes32 offerId, address holderIdentity);
+    event LitigationTimedOut(bytes32 offerId, address holderIdentity);
+    event LitigationCompleted(bytes32 offerId, address holderIdentity, bool DH_was_penalized);
 
     event ReplacementStarted(bytes32 offerId, address holderIdentity, address challengerIdentity, bytes32 litigationRootHash);
     event ReplacementCompleted(bytes32 offerId, address challengerIdentity, address chosenHolder);
@@ -65,7 +68,7 @@ contract Litigation {
         litigationStorage.setLitigationStatus(offerId, holderIdentity, LitigationStorage.LitigationStatus.initiated);
         litigationStorage.setLitigationTimestamp(offerId, holderIdentity, block.timestamp);
 
-        emit LitigationStatusChanged(offerId, holderIdentity, LitigationStorage.LitigationStatus.initiated);
+        emit LitigationInitiated(offerId, holderIdentity, requestedDataIndex);
         return true;
     }
     
@@ -88,7 +91,7 @@ contract Litigation {
         litigationStorage.setLitigationStatus(offerId, holderIdentity, LitigationStorage.LitigationStatus.answered);
         litigationStorage.setLitigationTimestamp(offerId, holderIdentity, block.timestamp);
 
-        emit LitigationStatusChanged(offerId, holderIdentity, LitigationStorage.LitigationStatus.answered);
+        emit LitigationAnswered(offerId, holderIdentity);
         return true;
     }
 
@@ -138,7 +141,7 @@ contract Litigation {
             "Cannot complete a comlpeted litigation that is not initiated or answered!");
 
         if(holdingStorage.getHolderLitigationEncryptionType(offerId, holderIdentity) == 0){
-            parameters[3] = uint256(litigationStorage.getLitigationRequestedData(offerId, holderIdentity));
+            parameters[3] = uint256(holdingStorage.getOfferRedLitigationHash(offerId));
         } else if (holdingStorage.getHolderLitigationEncryptionType(offerId, holderIdentity) == 1) {
             parameters[3] = uint256(holdingStorage.getOfferGreenLitigationHash(offerId));
         } else {
@@ -146,13 +149,15 @@ contract Litigation {
         }
 
         if(litigationStatus == LitigationStorage.LitigationStatus.initiated) {
+            // Litigator claims that the DH is inactive
+            // Verify that the asnwer window has passes and that the completion window has not passed
             require(parameters[0] + parameters[1].mul(2) >= block.timestamp, 
                 "The time window for completing the unanswered litigation has passed!");
             require(parameters[0] + parameters[1] < block.timestamp, 
                 "The answer window has not passed, cannot complete litigation yet!");
-        } else if(litigationStatus == LitigationStorage.LitigationStatus.answered) {
-            require(parameters[0] + parameters[1] >= block.timestamp, 
-                "The time window for completing the answered litigation has passed!");
+
+            // DH is considered inactive, replace him regardless of the proofData
+
             // Pay the previous holder
             parameters[0] = holdingStorage.getOfferTokenAmountPerHolder(offerId);
             parameters[0] = parameters[0].mul(block.timestamp.sub(holdingStorage.getHolderPaymentTimestamp(offerId, holderIdentity)));
@@ -183,10 +188,15 @@ contract Litigation {
                 // Calculate and set task
             litigationStorage.setLitigationReplacementTask(offerId, holderIdentity, blockhash(block.number - 1) & bytes32(2 ** (parameters[2] * 4) - 1));
 
-            emit LitigationStatusChanged(offerId, holderIdentity, LitigationStorage.LitigationStatus.replacing);
+            emit LitigationCompleted(offerId, holderIdentity, true);
             emit ReplacementStarted(offerId, holderIdentity, litigatorIdentity, bytes32(parameters[3]));
             return true;
-        }
+        } 
+        
+        // The litigation status is answered, verify that the completion is happening during the completion time frame
+        require(parameters[0] + parameters[1] >= block.timestamp, 
+           "The time window for completing the answered litigation has passed!");
+        
 
         if(calculateMerkleTrees(offerId, holderIdentity, proofData, bytes32(parameters[3]))) {
             // DH has the requested data -> Set litigation as completed, no transfer of tokens
@@ -194,7 +204,7 @@ contract Litigation {
             litigationStorage.setLitigationTimestamp(offerId, holderIdentity, block.timestamp);
             
 
-            emit LitigationStatusChanged(offerId, holderIdentity, LitigationStorage.LitigationStatus.completed);
+            emit LitigationCompleted(offerId, holderIdentity, false);
             return false;
         }
         else {
@@ -234,7 +244,7 @@ contract Litigation {
                 // Calculate and set task
             litigationStorage.setLitigationReplacementTask(offerId, holderIdentity, blockhash(block.number - 1) & bytes32(2 ** (parameters[2] * 4) - 1));
 
-            emit LitigationStatusChanged(offerId, holderIdentity, LitigationStorage.LitigationStatus.replacing);
+            emit LitigationCompleted(offerId, holderIdentity, true);
             emit ReplacementStarted(offerId, holderIdentity, litigatorIdentity, bytes32(parameters[3]));
             return true;
         }
@@ -262,7 +272,7 @@ contract Litigation {
                 answerHash = keccak256(abi.encodePacked(answerHash, hashArray[i]));
             }
             i++;
-        }    
+        }
         return (answerHash == litigationRootHash || proofHash != litigationRootHash);
     }
 
@@ -286,12 +296,11 @@ contract Litigation {
         require(ERC725(replacementHolderIdentity[2]).keyHasPurpose(keccak256(abi.encodePacked(ecrecovery(keccak256(abi.encodePacked(offerId,uint256(replacementHolderIdentity[2]))), confirmation3))), 4), "Wallet from holder 3 does not have encryption approval!");
 
         // Verify task answer
-        require(((keccak256(abi.encodePacked(replacementHolderIdentity[0], replacementHolderIdentity[1], replacementHolderIdentity[2])) >> (shift * 4)) & bytes32((2 ** (4 * holdingStorage.getOfferDifficulty(bytes32(offerId)))) - 1))
-        == holdingStorage.getOfferTask(bytes32(offerId)), "Submitted identities do not answer the task correctly!");
+        require(((keccak256(abi.encodePacked(replacementHolderIdentity[0], replacementHolderIdentity[1], replacementHolderIdentity[2])) >> (shift * 4)) & bytes32((2 ** (4 * litigationStorage.getLitigationReplacementDifficulty(bytes32(offerId), holderIdentity))) - 1))
+        == litigationStorage.getLitigationReplacementTask(bytes32(offerId), holderIdentity), "Submitted identities do not answer the task correctly!");
 
         // Set litigation status
         litigationStorage.setLitigationStatus(offerId, holderIdentity, LitigationStorage.LitigationStatus.replaced);
-        emit LitigationStatusChanged(offerId, holderIdentity, LitigationStorage.LitigationStatus.replaced);
         emit ReplacementCompleted(offerId, litigatorIdentity, replacementHolderIdentity[block.timestamp % 3]);
     }
 

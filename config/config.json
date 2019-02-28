@@ -399,7 +399,7 @@
     "dc_litigation_interval_in_minutes": 1,
     "dh_max_holding_time_in_minutes": 60,
     "dh_min_token_price": "10000000000000000000",
-    "dh_min_litigation_interval_in_minutes": 5,
+    "dh_min_litigation_interval_in_minutes": 1,
     "deposit_on_demand": false,
     "dc_choose_time": 300000,
     "requireApproval": false,

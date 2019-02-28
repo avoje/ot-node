@@ -358,7 +358,7 @@
       "network_id": "rinkeby",
       "gas_limit": "2000000",
       "gas_price": "20000000000",
-      "hub_contract_address": "0xc0d10e1da56920C85CD98bbfF0556ecD3FCC0C25",
+      "hub_contract_address": "0x0F92b56D1Cd3c34eDD2D293B87C2e436BBc96173",
       "rpc_node_host": "https://rinkeby.infura.io/1WRiEqAQ9l4SW6fGdiDt",
       "rpc_node_port": "",
       "plugins": [

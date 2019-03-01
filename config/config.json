@@ -394,7 +394,7 @@
       "branch": "feature/litigation-testenv"
     },
     "dataSetStorage": "data_set_storage",
-    "dc_holding_time_in_minutes": 60,
+    "dc_holding_time_in_minutes": 15,
     "dc_token_amount_per_holder": "10000000000000000000",
     "dc_litigation_interval_in_minutes": 1,
     "dh_max_holding_time_in_minutes": 60,
@@ -404,7 +404,7 @@
     "dc_choose_time": 300000,
     "requireApproval": false,
     "litigationEnabled": true,
-    "numberOfChallenges": 120
+    "numberOfChallenges": 30
   },
   "mariner": {
     "identity": null,

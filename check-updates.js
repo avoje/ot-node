@@ -84,7 +84,7 @@ class AutoUpdate {
                         log.info('Installation succeeded!');
                         log.warn('RESTARTING THE APP!');
                         umzug_migrations.up().then((migrations) => {
-                            log.warn('Database migrated.');
+                            log.warn('Database migrated.', migrations);
                             this.restartNode();
                         });
                     }

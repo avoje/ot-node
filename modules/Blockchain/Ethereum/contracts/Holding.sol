@@ -189,7 +189,7 @@ contract Holding is Ownable {
         // Verify sender
         require(ERC725(identity).keyHasPurpose(keccak256(abi.encodePacked(msg.sender)), 2) || ERC725(identity).keyHasPurpose(keccak256(abi.encodePacked(msg.sender)), 1), "Sender does not have proper permission to call this function!");
         require(Approval(hub.getContractAddress("Approval")).identityHasApproval(identity), "Identity does not have approval for using the contract");
-       
+
         // Verify that the litigation is not in progress
         LitigationStorage.LitigationStatus status = LitigationStorage(hub.getContractAddress("LitigationStorage")).getLitigationStatus(bytes32(offerId), identity);
         uint256 litigationTimestamp = LitigationStorage(hub.getContractAddress("LitigationStorage")).getLitigationTimestamp(bytes32(offerId), identity);
@@ -233,7 +233,7 @@ contract Holding is Ownable {
         uint256 holderPaidAmount = holdingStorage.getHolderPaidAmount(bytes32(offerId), identity);
         holderPaidAmount = holderPaidAmount.add(amountToTransfer);
         holdingStorage.setHolderPaidAmount(bytes32(offerId), identity, holderPaidAmount);
-        
+
         emit PaidOut(bytes32(offerId), identity, amountToTransfer);
     }
 

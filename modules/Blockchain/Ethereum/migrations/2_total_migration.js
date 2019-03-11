@@ -37,21 +37,21 @@ module.exports = async (deployer, network, accounts) => {
     case 'test':
         await deployer.deploy(TestingUtilities);
 
-        await deployer.deploy(Hub, { gas: 6000000, from: accounts[0] })
+        await deployer.deploy(Hub, { from: accounts[0] })
             .then((result) => {
                 hub = result;
             });
 
         profileStorage = await deployer.deploy(
             ProfileStorage,
-            hub.address, { gas: 6000000, from: accounts[0] },
+            hub.address, { from: accounts[0] },
         );
         await hub.setProfileStorageAddress(profileStorage.address);
 
         holdingStorage = await deployer.deploy(
             HoldingStorage,
             hub.address,
-            { gas: 6000000, from: accounts[0] },
+            { from: accounts[0] },
         );
         await hub.setHoldingStorageAddress(holdingStorage.address);
 
@@ -61,13 +61,13 @@ module.exports = async (deployer, network, accounts) => {
         token = await deployer.deploy(TracToken, accounts[0], accounts[1], accounts[2]);
         await hub.setTokenAddress(token.address);
 
-        profile = await deployer.deploy(Profile, hub.address, { gas: 9000000, from: accounts[0] });
+        profile = await deployer.deploy(Profile, hub.address, { from: accounts[0] });
         await hub.setProfileAddress(profile.address);
 
-        holding = await deployer.deploy(Holding, hub.address, { gas: 6000000, from: accounts[0] });
+        holding = await deployer.deploy(Holding, hub.address, { from: accounts[0] });
         await hub.setHoldingAddress(holding.address);
 
-        reading = await deployer.deploy(Reading, hub.address, { gas: 6000000, from: accounts[0] });
+        reading = await deployer.deploy(Reading, hub.address, { from: accounts[0] });
         await hub.setReadingAddress(reading.address);
 
         for (let i = 0; i < 10; i += 1) {
@@ -79,21 +79,21 @@ module.exports = async (deployer, network, accounts) => {
 
         break;
     case 'ganache':
-        await deployer.deploy(Hub, { gas: 6000000, from: accounts[0] })
+        await deployer.deploy(Hub, { from: accounts[0] })
             .then((result) => {
                 hub = result;
             });
 
         profileStorage = await deployer.deploy(
             ProfileStorage,
-            hub.address, { gas: 6000000, from: accounts[0] },
+            hub.address, { from: accounts[0] },
         );
         await hub.setProfileStorageAddress(profileStorage.address);
 
         holdingStorage = await deployer.deploy(
             HoldingStorage,
             hub.address,
-            { gas: 6000000, from: accounts[0] },
+            { from: accounts[0] },
         );
         await hub.setHoldingStorageAddress(holdingStorage.address);
 
@@ -103,13 +103,13 @@ module.exports = async (deployer, network, accounts) => {
         token = await deployer.deploy(TracToken, accounts[0], accounts[1], accounts[2]);
         await hub.setTokenAddress(token.address);
 
-        profile = await deployer.deploy(Profile, hub.address, { gas: 9000000, from: accounts[0] });
+        profile = await deployer.deploy(Profile, hub.address, { from: accounts[0] });
         await hub.setProfileAddress(profile.address);
 
-        holding = await deployer.deploy(Holding, hub.address, { gas: 6000000, from: accounts[0] });
+        holding = await deployer.deploy(Holding, hub.address, { from: accounts[0] });
         await hub.setHoldingAddress(holding.address);
 
-        reading = await deployer.deploy(Reading, hub.address, { gas: 6000000, from: accounts[0] });
+        reading = await deployer.deploy(Reading, hub.address, { from: accounts[0] });
         await hub.setReadingAddress(reading.address);
 
         for (let i = 0; i < 10; i += 1) {
@@ -152,10 +152,10 @@ module.exports = async (deployer, network, accounts) => {
         // token = await deployer.deploy(TracToken, accounts[0], accounts[1], accounts[2]);
         // await hub.setTokenAddress(token.address);
 
-        profile = await deployer.deploy(Profile, hub.address, { gas: 6500000, from: accounts[0] });
+        profile = await deployer.deploy(Profile, hub.address, { from: accounts[0] });
         await hub.setProfileAddress(profile.address);
 
-        holding = await deployer.deploy(Holding, hub.address, { gas: 6000000, from: accounts[0] });
+        holding = await deployer.deploy(Holding, hub.address, { from: accounts[0] });
         await hub.setHoldingAddress(holding.address);
 
         // for (let i = 0; i < 10; i += 1) {
@@ -173,7 +173,7 @@ module.exports = async (deployer, network, accounts) => {
         console.log(`\t Holding contract address: \t\t${holding.address}`);
         break;
     case 'rinkeby':
-        await deployer.deploy(Hub, { gas: 6000000, from: accounts[0] })
+        await deployer.deploy(Hub, { from: accounts[0] })
             .then((result) => {
                 hub = result;
             });
@@ -183,24 +183,24 @@ module.exports = async (deployer, network, accounts) => {
         profileStorage = await deployer.deploy(
             ProfileStorage,
             hub.address,
-            { gas: 6000000, from: accounts[0] },
+            { from: accounts[0] },
         );
         await hub.setProfileStorageAddress(profileStorage.address);
 
         holdingStorage = await deployer.deploy(
             HoldingStorage,
             hub.address,
-            { gas: 6000000, from: accounts[0] },
+            { from: accounts[0] },
         );
         await hub.setHoldingStorageAddress(holdingStorage.address);
 
-        profile = await deployer.deploy(Profile, hub.address, { gas: 7000000, from: accounts[0] });
+        profile = await deployer.deploy(Profile, hub.address, { from: accounts[0] });
         await hub.setProfileAddress(profile.address);
 
-        holding = await deployer.deploy(Holding, hub.address, { gas: 6000000, from: accounts[0] });
+        holding = await deployer.deploy(Holding, hub.address, { from: accounts[0] });
         await hub.setHoldingAddress(holding.address);
 
-        approval = await deployer.deploy(Approval, { gas: 6000000, from: accounts[0] });
+        approval = await deployer.deploy(Approval, { from: accounts[0] });
         await hub.setApprovalAddress(approval.address);
 
         console.log('\n\n \t Contract adressess on rinkeby:');

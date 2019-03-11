@@ -23,6 +23,7 @@ contract Holding is Ownable {
 
 
     event OfferTask(bytes32 dataSetId, bytes32 dcNodeId, bytes32 offerId, bytes32 task);
+    event OfferTaskReset(bytes32 offerId, bytes32 newTask);
     event OfferCreated(bytes32 offerId, bytes32 dataSetId, bytes32 dcNodeId, uint256 holdingTimeInMinutes, uint256 dataSetSizeInBytes, uint256 tokenAmountPerHolder, uint256 litigationIntervalInMinutes);
     event OfferFinalized(bytes32 offerId, address holder1, address holder2, address holder3);
 
@@ -193,6 +194,26 @@ contract Holding is Ownable {
 
         holdingStorage.setHolderPaidAmount(bytes32(offerId), identity, amountToTransfer);
         emit PaidOut(bytes32(offerId), identity, amountToTransfer);
+    }
+
+    function resetTask(address identity, uint256 offerId)
+    public {
+        HoldingStorage holdingStorage = HoldingStorage(hub.holdingStorageAddress());
+
+        // Verify sender
+        require(ERC725(identity).keyHasPurpose(keccak256(abi.encodePacked(msg.sender)), 2), "Sender does not have action permission for this identity");
+        require(identity == holdingStorage.getOfferCreator(bytes32(offerId)), "Offer can only be finalized by its creator!");
+
+
+        // Verify that the offer has not been finalized
+        require(holdingStorage.getOfferStartTime(bytes32(offerId)) == 0, "Task can be reset only if the offer has not been finalized");
+
+        uint256 difficulty = holdingStorage.getOfferDifficulty(bytes32(offerId));
+        bytes32 newTask = blockhash(block.number - 1) & bytes32(2 ** (difficulty * 4) - 1);
+
+        holdingStorage.setOfferTask(bytes32(offerId), newTask);
+
+        OfferTaskReset(bytes32(offerId), newTask);
     }
 
     function payOutMultiple(address identity, bytes32[] offerIds)

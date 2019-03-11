@@ -55,6 +55,8 @@ contract Profile {
             Identity newIdentity = new Identity(msg.sender, managementWallet);
             emit IdentityCreated(msg.sender, address(newIdentity));
 
+            this.updateActiveNodes(identity, initialBalance, true);
+
             ProfileStorage(hub.profileStorageAddress()).setStake(address(newIdentity), initialBalance);
             ProfileStorage(hub.profileStorageAddress()).setNodeId(address(newIdentity), profileNodeId);
 
@@ -64,16 +66,12 @@ contract Profile {
             // Verify sender
             require(ERC725(identity).keyHasPurpose(keccak256(abi.encodePacked(msg.sender)), 2),  "Sender does not have action permission for identity!");
 
+            this.updateActiveNodes(identity, initialBalance, true);
+
             ProfileStorage(hub.profileStorageAddress()).setStake(identity, initialBalance);
             ProfileStorage(hub.profileStorageAddress()).setNodeId(identity, profileNodeId);
 
             emit ProfileCreated(identity, initialBalance);
-        }
-
-        if(initialBalance > minimalStake) {
-            uint256 activeNodes = ProfileStorage(hub.profileStorageAddress()).activeNodes();
-            activeNodes += 1;
-            ProfileStorage(hub.profileStorageAddress()).setActiveNodes(activeNodes);
         }
     }
 
@@ -117,6 +115,8 @@ contract Profile {
 
         tokenContract.transferFrom(msg.sender, address(profileStorage), amount);
 
+        this.updateActiveNodes(identity, amount, true);
+
         profileStorage.setStake(identity, profileStorage.getStake(identity).add(amount));
 
         emit TokensDeposited(identity, amount, profileStorage.getStake(identity).add(amount));
@@ -157,7 +157,9 @@ contract Profile {
 
         // Transfer already reserved tokens to user identity
         profileStorage.transferTokens(msg.sender, profileStorage.getWithdrawalAmount(identity));
-        
+
+        this.updateActiveNodes(identity, profileStorage.getWithdrawalAmount(identity), false);
+
         profileStorage.setStake(
             identity,
             profileStorage.getStake(identity).sub(profileStorage.getWithdrawalAmount(identity))
@@ -207,6 +209,28 @@ contract Profile {
         profileStorage.setStake(receiver, profileStorage.getStake(receiver).add(amount));
 
         emit TokensTransferred(sender, receiver, amount);
+    }
+
+    function updateActiveNodes(address identity, uint256 amountToChange, bool direction)
+    public {
+        require(hub.isContract(msg.sender), "Only contracts can call this funciton!");
+
+        ProfileStorage profileStorage = ProfileStorage(hub.profileStorageAddress());
+        uint256 stakeAvailable = profileStorage.getStake(identity).sub(profileStorage.getStakeReserved(identity));
+
+        uint256 activeNodes = profileStorage.activeNodes();
+
+        if(direction){
+            // Amount will be added to the stake
+            if(stakeAvailable < minimalStake && stakeAvailable.add(amountToChange) >= minimalStake){
+                profileStorage.setActiveNodes(activeNodes.add(1));
+            }
+        } else {
+            // Amount will be subtracted from the stake
+            if(stakeAvailable >= minimalStake && stakeAvailable.sub(amountToChange) < minimalStake){
+                profileStorage.setActiveNodes(activeNodes.sub(1));
+            }
+        }
     }
 
     function setMinimalStake(uint256 newMinimalStake) 

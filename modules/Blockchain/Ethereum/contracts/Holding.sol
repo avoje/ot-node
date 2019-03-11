@@ -161,6 +161,12 @@ contract Holding is Ownable {
         require(profileStorage.getStake(identity3).sub(profileStorage.getStakeReserved(identity3)) >= amount,
             "Third profile does not have enough stake for reserving!");
 
+        Profile profile = Profile(hub.profileAddress());
+
+        profile.updateActiveNodes(payer, amount.mul(3), false);
+        profile.updateActiveNodes(identity1, amount, false);
+        profile.updateActiveNodes(identity2, amount, false);
+        profile.updateActiveNodes(identity3, amount, false);
 
         profileStorage.increaseStakesReserved(
             payer,
@@ -187,6 +193,8 @@ contract Holding is Ownable {
         require(holdingStorage.getOfferStartTime(bytes32(offerId)) +
             holdingStorage.getOfferHoldingTimeInMinutes(bytes32(offerId)).mul(60) < block.timestamp,
             "Holding time not yet expired!");
+
+        Profile(hub.profileAddress()).updateActiveNodes(identity, amountToTransfer.mul(2), true);
 
         // Release tokens staked by holder and transfer tokens from data creator to holder
         Profile(hub.profileAddress()).releaseTokens(identity, amountToTransfer);

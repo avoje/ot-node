@@ -69,7 +69,7 @@ module.exports = {
             port: 8545,
             provider: () => new HDWalletProvider(mnemonic, `https://mainnet.infura.io/${process.env.MAINNET_ACCESS_KEY}`),
             network_id: 1,
-            gas: 7000000,// Gas limit used for deploys
+            gas: 7000000, // Gas limit used for deploys
             websockets: true,
             skipDryRun: true,
         },

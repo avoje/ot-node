@@ -265,42 +265,242 @@ contract('Offer testing', async (accounts) => {
     });
 
     // eslint-disable-next-line no-undef
-    it('Should test token transfers for holding', async () => {
-        // wait for holding job to expire
-        if (errored) assert(false, 'Test cannot run without previous test succeeding');
-        await new Promise(resolve => setTimeout(resolve, 65000));
-
-        var initialStake = [];
-        for (var i = 0; i < 3; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            var res = await profileStorage.profile.call(identities[i]);
-            initialStake[i] = res.stake;
+    it('Should test reseting a task', async () => {
+        // Get initial profile status of the data holders and creators
+        let promises = [];
+        for (let i = 0; i < 3; i += 1) {
+            promises[i] = profileStorage.getStake(identities[i]);
         }
-        res = await profileStorage.profile.call(DC_identity);
-        const initialStakeDC = res.stake;
-
-        for (i = 0; i < 2; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            await holding.payOut(identities[i], offerId, { from: accounts[i] });
+        const initialStakeDH = await Promise.all(promises);
+        promises = [];
+        for (let i = 0; i < 3; i += 1) {
+            promises[i] = profileStorage.getStakeReserved(identities[i]);
         }
-        const array = [];
-        array.push(offerId);
-        res = await holding.payOutMultiple(
-            identities[2],
-            array,
-            { from: accounts[2], gas: 200000 },
+        const initialStakeReservedDH = await Promise.all(promises);
+        const initialStakeDC = await profileStorage.getStake(DC_identity);
+        const initialStakeReservedDC = await profileStorage.getStakeReserved(DC_identity);
+
+        // Create offer
+        let res = await holding.createOffer(
+            DC_identity,
+            dataSetId,
+            dataRootHash,
+            redLitigationHash,
+            greenLitigationHash,
+            blueLitigationHash,
+            dcNodeId,
+            holdingTimeInMinutes,
+            tokenAmountPerHolder,
+            dataSetSizeInBytes,
+            litigationIntervalInMinutes,
+            { from: DC_wallet },
         );
-        console.log(`\tGasUsed: ${res.receipt.gasUsed}`);
+        const { offerId } = res.logs[0].args;
 
+        // Reset task for the offer
+        res = await holding.resetTask(DC_identity, offerId, { from: DC_wallet });
+
+        // Get the new task from the emitted event
+        var newTaskEvent = res.logs.find(element => (element.event.localeCompare('OfferTaskReset') === 0));
+        const { newTask } = newTaskEvent.args;
+
+        // Calculate offer solution
+        const solution = await util.keccakAddressAddressAddress.call(
+            identities[0],
+            identities[1],
+            identities[2],
+        );
+        for (var i = 65; i >= 2; i -= 1) {
+            if (newTask.charAt(newTask.length - 1) === solution.charAt(i)) break;
+        }
+        if (i === 2) {
+            assert(false, 'Could not find solution for offer challenge!');
+        }
+        const shift = 65 - i;
+
+        // Getting hashes
+        var hashes = [];
         for (i = 0; i < 3; i += 1) {
             // eslint-disable-next-line no-await-in-loop
-            res = await profileStorage.profile.call(identities[i]);
-            assert(initialStake[i].add(tokenAmountPerHolder).eq(res.stake), `Stake amount incorrect for account ${i}`);
-            assert((new BN(0)).eq(res.stakeReserved), `Stake amout incorrect for account ${i}`);
+            hashes[i] = await util.keccakBytesAddress.call(offerId, identities[i]);
         }
+
+        // Getting confirmations
+        var confimations = [];
+        for (i = 0; i < 3; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            confimations[i] = await web3.eth.accounts.sign(hashes[i], privateKeys[i]);
+        }
+
+        // Finalize offer
+        res = await holding.finalizeOffer(
+            DC_identity,
+            offerId,
+            shift,
+            confimations[0].signature,
+            confimations[1].signature,
+            confimations[2].signature,
+            [new BN(0), new BN(1), new BN(2)],
+            [identities[0], identities[1], identities[2]],
+            { from: DC_wallet },
+        );
+
+        // Verify final status of data holders and data creator
+        promises = [];
+        for (let i = 0; i < 3; i += 1) {
+            promises[i] = profileStorage.getStake(identities[i]);
+        }
+        const finalStakeDH = await Promise.all(promises);
+        promises = [];
+        for (let i = 0; i < 3; i += 1) {
+            promises[i] = profileStorage.getStakeReserved(identities[i]);
+        }
+        const finalStakeReservedDH = await Promise.all(promises);
+
+        const finalStakeDC = await profileStorage.getStake(DC_identity);
+        const finalStakeReservedDC = await profileStorage.getStakeReserved(DC_identity);
+
+        promises = [];
+        for (i = 0; i < 3; i += 1) {
+            promises[i] = holdingStorage.holder.call(offerId, identities[i]);
+        }
+        const finalHolderStatus = await Promise.all(promises);
+
+        for (i = 0; i < 3; i += 1) {
+            assert(initialStakeReservedDH[i].add(tokenAmountPerHolder).eq(finalStakeReservedDH[i]), `Reserved stake amount incorrect for account ${i}!` +
+                `Expected ${initialStakeReservedDH[i].add(tokenAmountPerHolder).toString()} but got ${finalStakeReservedDH[i].toString()}!`);
+
+            assert(tokenAmountPerHolder.eq(finalHolderStatus[i].stakedAmount), 'Token amount not matching!');
+            assert.equal(finalHolderStatus[i].litigationEncryptionType, i, `Litigation root hash not matching for holder ${i}!`);
+        }
+
         res = await profileStorage.profile.call(DC_identity);
-        assert(initialStakeDC.sub(tokenAmountPerHolder.mul(new BN(3))).eq(res.stake), 'Stake amount incorrect for DC');
-        assert((new BN(0)).eq(res.stakeReserved), 'Reserved stake amount incorrect for DC');
+        assert(initialStakeReservedDC.add(tokenAmountPerHolder.muln(3)).eq(finalStakeReservedDC), 'Reserved stake amount incorrect for DC!' +
+                `Expected ${initialStakeReservedDC.add(tokenAmountPerHolder.muln(3)).toString()} but got ${finalStakeReservedDC.toString()}!`);
+    });
+
+    // eslint-disable-next-line no-undef
+    it('Should test token transfers for holding', async () => {
+        let res = await holding.createOffer(
+            DC_identity,
+            dataSetId,
+            dataRootHash,
+            redLitigationHash,
+            greenLitigationHash,
+            blueLitigationHash,
+            dcNodeId,
+            holdingTimeInMinutes,
+            tokenAmountPerHolder,
+            dataSetSizeInBytes,
+            litigationIntervalInMinutes,
+            { from: DC_wallet },
+        );
+
+        // eslint-disable-next-line prefer-destructuring
+        offerId = res.logs[0].args.offerId;
+
+        const task = await holdingStorage.getOfferTask.call(offerId);
+        const solution = await util.keccakAddressAddressAddress.call(
+            identities[0],
+            identities[1],
+            identities[2],
+        );
+
+        for (var i = 65; i >= 2; i -= 1) {
+            if (task.charAt(task.length - 1) === solution.charAt(i)) break;
+        }
+        if (i === 2) {
+            assert(false, 'Could not find solution for offer challenge!');
+        }
+        const shift = 65 - i;
+
+        // Getting hashes
+        var hashes = [];
+        for (i = 0; i < 3; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            hashes[i] = await util.keccakBytesAddress.call(offerId, identities[i]);
+        }
+
+        // Getting confirmations
+        var confimations = [];
+        for (i = 0; i < 3; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            confimations[i] = await web3.eth.accounts.sign(hashes[i], privateKeys[i]);
+        }
+
+        res = await holding.finalizeOffer(
+            DC_identity,
+            offerId,
+            shift,
+            confimations[0].signature,
+            confimations[1].signature,
+            confimations[2].signature,
+            [new BN(0), new BN(1), new BN(2)],
+            [identities[0], identities[1], identities[2]],
+            { from: DC_wallet },
+        );
+
+        // Get initial profile status of the data holders and creators
+        let promises = [];
+        for (let i = 0; i < 3; i += 1) {
+            promises[i] = profileStorage.getStake(identities[i]);
+        }
+        const initialStakeDH = await Promise.all(promises);
+        promises = [];
+        for (let i = 0; i < 3; i += 1) {
+            promises[i] = profileStorage.getStakeReserved(identities[i]);
+        }
+        const initialStakeReservedDH = await Promise.all(promises);
+        const initialStakeDC = await profileStorage.getStake(DC_identity);
+        const initialStakeReservedDC = await profileStorage.getStakeReserved(DC_identity);
+
+        let timestamp = await holdingStorage.getOfferStartTime(offerId);
+        timestamp = timestamp.sub(holdingTimeInMinutes.muln(60).muln(3));
+        await holdingStorage.setOfferStartTime(offerId, timestamp);
+
+        promises = [];
+        for (i = 0; i < 3; i += 1) {
+            promises[i] = holding.payOut(identities[i], offerId, { from: accounts[i] });
+        }
+        await Promise.all(promises);
+
+        // Verify final status of data holders and data creator
+        promises = [];
+        for (let i = 0; i < 3; i += 1) {
+            promises[i] = profileStorage.getStake(identities[i]);
+        }
+        const finalStakeDH = await Promise.all(promises);
+        promises = [];
+        for (let i = 0; i < 3; i += 1) {
+            promises[i] = profileStorage.getStakeReserved(identities[i]);
+        }
+        const finalStakeReservedDH = await Promise.all(promises);
+
+        const finalStakeDC = await profileStorage.getStake(DC_identity);
+        const finalStakeReservedDC = await profileStorage.getStakeReserved(DC_identity);
+
+        promises = [];
+        for (i = 0; i < 3; i += 1) {
+            promises[i] = holdingStorage.holder.call(offerId, identities[i]);
+        }
+        const finalHolderStatus = await Promise.all(promises);
+
+        for (i = 0; i < 3; i += 1) {
+            assert(initialStakeReservedDH[i].sub(tokenAmountPerHolder).eq(finalStakeReservedDH[i]), `Reserved stake amount incorrect for account ${i}!` +
+                `Expected ${initialStakeReservedDH[i].sub(tokenAmountPerHolder).toString()} but got ${finalStakeReservedDH[i].toString()}!`);
+
+            assert(initialStakeDH[i].add(tokenAmountPerHolder).eq(finalStakeDH[i]), `Stake amount incorrect for account ${i}!` +
+                `Expected ${initialStakeDH[i].add(tokenAmountPerHolder).toString()} but got ${finalStakeDH[i].toString()}!`);
+
+            assert(tokenAmountPerHolder.eq(finalHolderStatus[i].stakedAmount), 'Token amount not matching!');
+            assert.equal(finalHolderStatus[i].litigationEncryptionType, i, `Litigation root hash not matching for holder ${i}!`);
+        }
+
+        res = await profileStorage.profile.call(DC_identity);
+        assert(initialStakeReservedDC.sub(tokenAmountPerHolder.muln(3)).eq(finalStakeReservedDC), 'Reserved stake amount incorrect for DC!' +
+                `Expected ${initialStakeReservedDC.sub(tokenAmountPerHolder.muln(3)).toString()} but got ${finalStakeReservedDC.toString()}!`);
+        assert(initialStakeDC.sub(tokenAmountPerHolder.muln(3)).eq(finalStakeDC), 'Stake amount incorrect for DC!' +
+                `Expected ${initialStakeDC.sub(tokenAmountPerHolder.muln(3)).toString()} but got ${finalStakeDC.toString()}!`);
     });
 
     // eslint-disable-next-line no-undef

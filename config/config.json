@@ -370,7 +370,7 @@
       "id": "release-env",
       "bootstraps": [
         "https://104.248.251.93:5278/#7b25c061e394888f7a7fe5d733954d2958dfe510"
-      ]
+      ],
       "remoteWhitelist": ["127.0.0.1", "localhost"],
       "solutionDifficulty": 14,
       "identityDifficulty": 12

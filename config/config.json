@@ -349,7 +349,7 @@
       "network_id": "rinkeby",
       "gas_limit": "2000000",
       "gas_price": "20000000000",
-      "hub_contract_address": "0x0e5995FE34BfC9DB7a31fa318f7f1256Cf28FfCa",
+      "hub_contract_address": "0x04716Ee2E694cE7255859C42197050d79958460e",
       "plugins": [
         {
           "enabled": false,
@@ -367,21 +367,20 @@
     },
     "network": {
       "hostname": "127.0.0.1",
-      "id": "TestnetV2.0.1b",
+      "id": "release-env",
       "bootstraps": [
-        "https://46.101.233.127:5278/#41d7357b322ca75d1187b3163b510ff704e9a040",
-        "https://82.196.6.215:5278/#9e7f1ec47d0da65b9f2e004510ae366519290dff"
-      ],
+        "https://104.248.251.93:5278/#7b25c061e394888f7a7fe5d733954d2958dfe510"
+      ]
       "remoteWhitelist": ["127.0.0.1", "localhost"],
       "solutionDifficulty": 14,
       "identityDifficulty": 12
     },
     "bugSnag": {
-      "releaseStage": "testnet"
+      "releaseStage": "release-env"
     },
     "autoUpdater": {
       "repo": "OriginTrail/ot-node",
-      "branch": "master"
+      "branch": "feature/release-env"
     },
     "dataSetStorage": "data_set_storage",
     "dc_holding_time_in_minutes": 60,

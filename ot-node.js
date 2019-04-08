@@ -52,6 +52,8 @@ const Web3 = require('web3');
 
 const log = require('./modules/logger');
 
+const Big = require('big.js');
+
 global.__basedir = __dirname;
 
 let context;
@@ -600,6 +602,8 @@ function main() {
     const otNode = new OTNode();
     otNode.bootstrap().then(() => {
         log.info('OT Node started');
+        const x = new Big(123.4567);
+        console.log(x.toString());
     });
 }
 

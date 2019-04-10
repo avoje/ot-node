@@ -3,7 +3,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const async = require('async');
 const levelup = require('levelup');
 const encoding = require('encoding-down');
-const kadence = require('@kadenceproject/kadence');
+const kadence = require('@deadcanaries/kadence');
 const fs = require('fs');
 const path = require('path');
 const utilities = require('../../Utilities');
@@ -13,8 +13,9 @@ const leveldown = require('leveldown');
 const PeerCache = require('./peer-cache');
 const ip = require('ip');
 const uuidv4 = require('uuid/v4');
+const secp256k1 = require('secp256k1');
 
-const KadenceUtils = require('@kadenceproject/kadence/lib/utils.js');
+const KadenceUtils = require('@deadcanaries/kadence/lib/utils.js');
 const { IncomingMessage, OutgoingMessage } = require('./logger');
 
 const pjson = require('../../../package.json');
@@ -66,36 +67,36 @@ class Kademlia {
             this.index = identityFileContent.index;
         } else {
             this.log.info('Identity not provided, generating new one...');
-            this.xprivkey = kadence.utils.toHDKeyFromSeed().privateExtendedKey;
-            const [xprivkey, childIndex] = await this.kademliaUtilities.solveIdentity(
-                this.xprivkey,
-                kadence.constants.HD_KEY_DERIVATION_PATH,
-            );
-            this.index = childIndex;
-            fs.writeFileSync(identityFilePath, JSON.stringify({
-                xprivkey: this.xprivkey,
-                index: this.index,
-            }));
+            this.xprivkey = kadence.utils.generatePrivateKey();
+            // const [xprivkey, childIndex] = await this.kademliaUtilities.solveIdentity(
+            //     this.xprivkey,
+            //     kadence.constants.HD_KEY_DERIVATION_PATH,
+            // );
+            // this.index = childIndex;
+            // fs.writeFileSync(identityFilePath, JSON.stringify({
+            //     xprivkey: this.xprivkey,
+            //     index: this.index,
+            // }));
         }
         this.identity = new kadence.eclipse.EclipseIdentity(
-            this.xprivkey,
-            this.index,
-            kadence.constants.HD_KEY_DERIVATION_PATH,
+            secp256k1.publicKeyCreate(this.xprivkey),
+            this.nonce,
+            this.proof,
         );
 
         this.log.info('Checking the identity');
         // Check if identity is valid
-        this.kademliaUtilities.checkIdentity(this.identity);
 
-        const { childKey } = this.kademliaUtilities.getIdentityKeys(
-            this.xprivkey,
-            kadence.constants.HD_KEY_DERIVATION_PATH,
-            this.index,
-        );
-        this.identity = kadence.utils.toPublicKeyHash(childKey.publicKey).toString('hex');
+        // If identity is not solved yet, start trying to solve it
+        if (!this.identity.validate()) {
+            this.log.warn('identity proof not yet solved, this can take a while');
+            await this.identity.solve();
+        }
 
-        this.log.notify(`My network identity: ${this.identity}`);
-        this.config.identity = this.identity;
+        this.identityHex = this.identity.fingerprint.toString('hex');
+
+        this.log.notify(`My network identity: ${this.identityHex}`);
+        this.config.identity = this.identityHex;
     }
 
     /**
@@ -125,9 +126,9 @@ class Kademlia {
                 hostname,
                 protocol: 'https:',
                 port: this.config.node_port,
-                xpub: parentKey.publicExtendedKey,
-                index: this.index,
-                agent: kadence.version.protocol,
+                // xpub: parentKey.publicExtendedKey,
+                // index: this.index,
+                // agent: kadence.version.protocol,
                 wallet: this.config.node_wallet,
                 network_id: this.config.network.id,
             };
@@ -142,8 +143,9 @@ class Kademlia {
             this.node = new kadence.KademliaNode({
                 logger: this.log,
                 transport,
-                identity: Buffer.from(this.identity, 'hex'),
+                identity: this.identity,
                 contact,
+                privateKey: this.xprivkey,
                 storage: levelup(encoding(leveldown(path.join(this.config.appDataPath, 'kadence.dht')))),
             });
 
@@ -483,7 +485,7 @@ class Kademlia {
              * @returns {*}
              */
             node.getNearestNeighbour = () =>
-                [...node.router.getClosestContactsToKey(this.identity).entries()].shift();
+                [...node.router.getClosestContactsToKey(this.identityhex).entries()].shift();
 
             /**
              * Gets contact by ID

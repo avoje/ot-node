@@ -1,4 +1,4 @@
-const kadence = require('@kadenceproject/kadence');
+const kadence = require('@deadcanaries/kadence');
 const readLine = require('readline');
 
 process.once('message', ({ privateKey, solutionDifficulty, identityDifficulty }) => {

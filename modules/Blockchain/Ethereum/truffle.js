@@ -26,14 +26,14 @@ module.exports = {
         ganache: {
             host: 'localhost',
             port: 7545,
-            gas: 6000000,
+            gas: 6500000,
             network_id: '5777',
         },
 
         setIdentity: {
             host: 'localhost',
             port: 7545,
-            gas: 6000000,
+            gas: 6500000,
             network_id: '5777',
         },
 
@@ -57,7 +57,7 @@ module.exports = {
         test: {
             host: 'localhost',
             port: 7545,
-            gas: 6000000,
+            gas: 6500000,
             network_id: '5777',
         },
 

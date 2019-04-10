@@ -11,6 +11,7 @@ var Holding = artifacts.require('Holding'); // eslint-disable-line no-undef
 
 var ProfileStorage = artifacts.require('ProfileStorage'); // eslint-disable-line no-undef
 var HoldingStorage = artifacts.require('HoldingStorage'); // eslint-disable-line no-undef
+var DictionaryStorage = artifacts.require('DictionaryStorage'); // eslint-disable-line no-undef
 var Reading = artifacts.require('Reading'); // eslint-disable-line no-undef
 
 var Identity = artifacts.require('Identity'); // eslint-disable-line no-undef
@@ -52,6 +53,7 @@ var trac;
 var profile;
 var holding;
 var holdingStorage;
+var dictionaryStorage;
 var profileStorage;
 var util;
 
@@ -165,6 +167,8 @@ contract('Offer testing', async (accounts) => {
         holding = await Holding.deployed();
         const holdingStorageAddress = await hub.getContractAddress.call('HoldingStorage');
         holdingStorage = await HoldingStorage.at(holdingStorageAddress);
+        const dictionaryStorageAddress = await hub.getContractAddress.call('DictionaryStorage');
+        dictionaryStorage = await DictionaryStorage.at(dictionaryStorageAddress);
         profileStorage = await ProfileStorage.deployed();
         util = await TestingUtilities.deployed();
 
@@ -255,7 +259,7 @@ contract('Offer testing', async (accounts) => {
     });
 
     // eslint-disable-next-line no-undef
-    it('Should test finalizing offer', async () => {
+    it.only('Should test finalizing offer', async () => {
         await holdingStorage.setDifficultyOverride(new BN(1));
 
         let res = await holding.createOffer(
@@ -278,7 +282,7 @@ contract('Offer testing', async (accounts) => {
         // eslint-disable-next-line prefer-destructuring
         offerId = res.logs[0].args.offerId;
 
-        const task = await holdingStorage.getOfferTask.call(offerId);
+        const task = await dictionaryStorage.getOfferParameter.call(offerId, 'Task');
         console.log(`Task created: ${task}`);
 
         const hash1 = await util.keccakAddressBytes(identities[0], task);
@@ -363,10 +367,14 @@ contract('Offer testing', async (accounts) => {
 
         for (i = 0; i < 3; i += 1) {
             // eslint-disable-next-line no-await-in-loop
-            res = await holdingStorage.holder.call(offerId, sortedIdentities[i].identity);
+            let stakedAmount = await dictionaryStorage.getHolderParameter.call(offerId, sortedIdentities[i].identity, 'StakedAmount');
+            stakedAmount = new BN(stakedAmount.substring(2), 16);
+            assert(tokenAmountPerHolder.eq(stakedAmount), 'Token amount not matching!');
 
-            assert(tokenAmountPerHolder.eq(res.stakedAmount), 'Token amount not matching!');
-            assert.equal(res.litigationEncryptionType, i, 'Red litigation hash not matching!');
+            // eslint-disable-next-line no-await-in-loop
+            const litigationEncryptionType = await dictionaryStorage.getHolderParameter.call(offerId, sortedIdentities[i].identity, 'LitigationEncryptionType');
+            stakedAmount = new BN(stakedAmount, 16);
+            assert.equal(litigationEncryptionType, i, 'Litigation encryption type not matching!');
         }
 
         for (i = 0; i < confimations.length; i += 1) {
@@ -377,26 +385,7 @@ contract('Offer testing', async (accounts) => {
         res = await profileStorage.getStakeReserved.call(DC_identity);
         assert(tokenAmountPerHolder.mul(new BN(3)).eq(res), 'Tokens reserved for DC not matching');
 
-        // Create an additional offer
-        res = await holding.createOffer(
-            DC_identity,
-            dataSetId,
-            dataRootHash,
-            redLitigationHash,
-            greenLitigationHash,
-            blueLitigationHash,
-            dcNodeId,
-            holdingTimeInMinutes,
-            tokenAmountPerHolder,
-            dataSetSizeInBytes,
-            litigationIntervalInMinutes,
-            { from: DC_wallet },
-        );
-        const secondOfferGasUsage = res.receipt.gasUsed;
-        console.log(`Gas used for creating a second offer: ${secondOfferGasUsage}`);
-
-        console.log(`Total gas used for creating the first offer: ${firstOfferGasUsage + finalizeOfferGasUsage}`);
-        console.log(`Total gas used for creating a second offer: ${secondOfferGasUsage + finalizeOfferGasUsage}`);
+        console.log(`Total gas used for creating the offer: ${firstOfferGasUsage + finalizeOfferGasUsage}`);
 
         await holdingStorage.setDifficultyOverride(new BN(0));
     });

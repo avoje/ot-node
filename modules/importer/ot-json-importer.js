@@ -146,6 +146,8 @@ class OtJsonImporter {
             encrypted,
         } = data;
 
+
+
         // TODO: validate document here.
         this._validate(document);
 
@@ -220,7 +222,7 @@ class OtJsonImporter {
                         data: otObject.properties,
                         datasets: [datasetId],
                     };
-                    if (encrypted[_id(otObject)]) {
+                    if (encrypted && encrypted[_id(otObject)]) {
                         dataVertex.encrypted = encrypted[_id(otObject)];
                     }
                     vertices.push(dataVertex);

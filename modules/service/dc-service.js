@@ -1,5 +1,6 @@
 const BN = require('bn.js');
 const Utilities = require('../Utilities');
+const ImportUtilities = require('../ImportUtilities');
 const Encryption = require('../Encryption');
 
 const models = require('../../models');
@@ -358,7 +359,7 @@ class DCService {
     async _sendReplication(offer, wallet, identity, dhIdentity, response) {
         const colors = ['red', 'green', 'blue'];
         const color = colors[Utilities.getRandomInt(2)];
-        const colorNumber = this.replicationService.castColorToNumber(color);
+        const colorNumber = ImportUtilities.castColorToBigNumber(color);
 
         const replication = await this.replicationService.loadReplication(offer.id, color);
         await models.replicated_data.create({

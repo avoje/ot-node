@@ -1,6 +1,7 @@
 const { Database } = require('arangojs');
 const request = require('superagent');
 const Utilities = require('../Utilities');
+const ImportUtilities = require('../ImportUtilities');
 const { normalizeGraph } = require('./graph-converter');
 
 const IGNORE_DOUBLE_INSERT = true;
@@ -692,31 +693,55 @@ class ArangoJS {
     /**
      * Finds vertices by dataset ID
      * @param {string} data_id - Dataset ID
+     * @param {string} encColor - Encrypted color
      * @return {Promise<*>}
      */
-    async findVerticesByImportId(data_id) {
-        const queryString = `FOR v IN ot_vertices 
-                        FILTER v.datasets != null 
-                        AND POSITION(v.datasets, @importId, false)  != false 
-                        SORT v._key RETURN v`;
-        const params = { importId: data_id };
-        const vertices = await this.runQuery(queryString, params);
+    async findVerticesByImportId(data_id, encColor = null) {
+        let params = null;
+        let queryString = null;
+        if (encColor) {
+            queryString = `let dataVertices = (
+                for d in ot_vertices 
+                    filter d.datasets != null 
+                        and position(d.datasets,  @importId, false)  != false 
+                        and d.encrypted != null
+                    return {
+                        "_key": d._key,
+                        "_id": d._id,
+                        "_rev": d._rev,
+                        "vertexType": d.vertexType,
+                        "data": d.encrypted[@color]
+                    }
+            )
 
-        const normalizedVertices = normalizeGraph(data_id, vertices, []).vertices; // ???
+            let otherVertices = (
+                for o in ot_vertices 
+                    filter o.datasets != null 
+                        and position(o.datasets, @importid, false)  != false 
+                        and o.encrypted == null
+                    return o
+            )
 
-        if (normalizedVertices.length === 0) {
-            return [];
+            let allVertices = append(dataVertices, otherVertices)
+
+            for a in allVertices
+                sort a._key
+            return a`;
+            params = { importId: data_id, color: ImportUtilities.castNumberToColor(encColor) };
+        } else {
+            queryString = `for d in ot_vertices 
+                                filter d.datasets != null 
+                                    and position(d.datasets,  @importId, false)  != false 
+                                return {
+                                    "_key": d._key,
+                                    "_id": d._id,
+                                    "_rev": d._rev,
+                                    "vertexType": d.vertexType,
+                                    "data": d.data
+                                }`;
+            params = { importId: data_id };
         }
-
-        // Check if packed to fix issue with double classes.
-        const filtered = normalizedVertices.filter(v => v._dc_key);
-        if (filtered.length > 0) {
-            return normalizedVertices;
-        }
-
-        const objectClasses = await this.findObjectClassVertices();
-
-        return normalizedVertices.concat(objectClasses);
+        return this.runQuery(queryString, params);
     }
 
     /**
@@ -741,15 +766,59 @@ class ArangoJS {
      * @return {Promise<void>}
      */
     async findEdgesByImportId(data_id, encColor = null) {
-        const queryString = 'FOR v IN ot_edges ' +
-                'FILTER v.datasets != null ' +
-                'AND POSITION(v.datasets, @importId, false) != false ' +
-                'SORT v._key ' +
-                'RETURN v';
+        let params = null;
+        let queryString = null;
+        if (encColor) {
+            queryString = `let dataEdges = (
+                for d in ot_edges 
+                    filter d.datasets != null 
+                        and position(d.datasets,  @importid, false)  != false 
+                        and d.encrypted != null
+                    return {
+                        "_key": d._key,
+                        "_id": d._id,
+                        "_from": d._from,
+                        "_to": d._to,
+                        "_rev": d._rev,
+                        "edgeType": d.edgeType,
+                        "datasets": d.datasets,
+                        "properties": d.encrypted[@color]
+                    }
+            )
 
-        const params = { importId: data_id };
-        const edges = await this.runQuery(queryString, params);
-        return normalizeGraph(data_id, [], edges).edges;
+            let otherEdges = (
+                for o in ot_edges 
+                    filter o.datasets != null 
+                        and position(o.datasets, @importid, false)  != false 
+                        and o.encrypted == null
+                    return o
+            )
+
+            let allEdges = append(dataEdges, otherEdges)
+
+            for a in allEdges
+                sort a._key
+            return a`;
+            params = { importId: data_id, color: ImportUtilities.castNumberToColor(encColor) };
+        } else {
+            queryString = `for d in ot_edges 
+                    filter d.datasets != null 
+                        and position(d.datasets,  "0x6a6e8412083a4ec1d7a0bba26f9221195fa93cd079d0764898eb9779ebf8ec99", false)  != false 
+                        and d.encrypted != null
+                    return {
+                        "_key": d._key,
+                        "_id": d._id,
+                        "_from": d._from,
+                        "_to": d._to,
+                        "_rev": d._rev,
+                        "edgeType": d.edgeType,
+                        "datasets": d.datasets,
+                        "properties": d.properties
+                    }`;
+            params = { importid: data_id };
+        }
+
+        return this.runQuery(queryString, params);
     }
 
     /**

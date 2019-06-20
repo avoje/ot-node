@@ -1,21 +1,9 @@
-const BN = require('bn.js');
 const path = require('path');
 
 const Encryption = require('../Encryption');
 const ImportUtilities = require('../ImportUtilities');
-const MerkleTree = require('../Merkle');
 const Models = require('../../models/index');
 const Utilities = require('../Utilities');
-
-/**
- * Supported versions of the same data set
- * @type {{RED: string, BLUE: string, GREEN: string}}
- */
-const COLOR = {
-    RED: 'red',
-    BLUE: 'blue',
-    GREEN: 'green',
-};
 
 class ReplicationService {
     constructor(ctx) {
@@ -40,14 +28,14 @@ class ReplicationService {
 
         const otJson = await this.otJsonImporter.getImport(offer.data_set_id);
         const flavor = {
-            [COLOR.RED]: otJson,
-            [COLOR.BLUE]: Utilities.copyObject(otJson),
-            [COLOR.GREEN]: Utilities.copyObject(otJson),
+            red: otJson,
+            blue: Utilities.copyObject(otJson),
+            green: Utilities.copyObject(otJson),
         };
 
         const that = this;
         this.replicationCache[internalOfferId] = {};
-        return Promise.all([COLOR.RED, COLOR.BLUE, COLOR.GREEN]
+        return Promise.all(['red', 'blue', 'green']
             .map(async (color) => {
                 const document = flavor[color];
 
@@ -87,23 +75,6 @@ class ReplicationService {
                 that.replicationCache[internalOfferId][color] = replication;
                 return replication;
             }));
-    }
-
-    /**
-     * Casts color to number
-     * @param color
-     */
-    castColorToNumber(color) {
-        switch (color.toLowerCase()) {
-        case COLOR.RED:
-            return new BN(0, 10);
-        case COLOR.GREEN:
-            return new BN(1, 10);
-        case COLOR.BLUE:
-            return new BN(2, 10);
-        default:
-            throw new Error(`Failed to cast color ${color}`);
-        }
     }
 
     /**

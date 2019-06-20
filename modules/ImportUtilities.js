@@ -10,6 +10,18 @@ const Utilities = require('./Utilities');
 
 const Models = require('../models');
 
+const BN = require('bn.js');
+
+/**
+ * Supported versions of the same data set
+ * @type {{RED: string, BLUE: string, GREEN: string}}
+ */
+const COLOR = {
+    RED: 'red',
+    BLUE: 'blue',
+    GREEN: 'green',
+};
+
 /**
  * Import related utilities
  */
@@ -116,18 +128,13 @@ class ImportUtilities {
         const encryptedMap = {};
         encryptedMap.objects = {};
         encryptedMap.relations = {};
-        const colorMap = {
-            0: 'red',
-            1: 'green',
-            2: 'blue',
-        };
 
         for (const obj of decryptedDataset['@graph']) {
             if (obj.properties != null) {
                 const encryptedProperties = obj.properties;
                 obj.properties = Encryption.decryptObject(obj.properties, decryptionKey);
                 if (encryptionColor != null) {
-                    const encColor = colorMap[encryptionColor];
+                    const encColor = ImportUtilities.castNumberToColor(encryptionColor);
                     encryptedMap.objects[obj['@id']] = {};
                     encryptedMap.objects[obj['@id']][encColor] = encryptedProperties;
                 }
@@ -138,7 +145,7 @@ class ImportUtilities {
                     const encryptedProperties = rel.properties;
                     rel.properties = Encryption.decryptObject(rel.properties, decryptionKey);
                     if (encryptionColor != null) {
-                        const encColor = colorMap[encryptionColor];
+                        const encColor = ImportUtilities.castNumberToColor(encryptionColor);
                         const relationKey = sha3_256(utilities.stringify(rel, 0));
                         encryptedMap.relations[obj['@id']][relationKey] = {};
                         encryptedMap.relations[obj['@id']][relationKey][encColor] = encryptedProperties;
@@ -151,7 +158,6 @@ class ImportUtilities {
             encryptedMap,
         };
     }
-
 
     static encryptDataset(dataset, encryptionKey) {
         const encryptedDataset = utilities.copyObject(dataset);
@@ -533,6 +539,49 @@ class ImportUtilities {
         }
 
         return header;
+    }
+
+    /**
+     * Casts color to number
+     * @param color
+     */
+    static castColorToNumber(color) {
+        switch (color.toLowerCase()) {
+        case COLOR.RED:
+            return 0;
+        case COLOR.GREEN:
+            return 1;
+        case COLOR.BLUE:
+            return 2;
+        default:
+            throw new Error(`Failed to cast color ${color}`);
+        }
+    }
+
+    /**
+     * Casts color to BN
+     * @param color
+     */
+    static castColorToBigNumber(color) {
+        return new BN(ImportUtilities.castColorToNumber(color), 10);
+    }
+
+    /**
+     * Cast number to color
+     * @param number
+     * @return {string}
+     */
+    static castNumberToColor(number) {
+        switch (number) {
+        case 0:
+            return COLOR.RED;
+        case 1:
+            return COLOR.GREEN;
+        case 2:
+            return COLOR.BLUE;
+        default:
+            throw new Error(`Failed to cast number ${number}`);
+        }
     }
 }
 

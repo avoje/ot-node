@@ -374,7 +374,7 @@
     "network": {
       "hostname": "127.0.0.1",
       "id": "SE",
-      "bootstraps": [],
+      "bootstraps": ["https://134.209.190.40:5278/#28fd6d321ff3b356fe0d213713d4503734565e75"],
       "remoteWhitelist": ["127.0.0.1", "localhost"],
       "solutionDifficulty": 14,
       "identityDifficulty": 12

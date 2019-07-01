@@ -39,7 +39,6 @@ class GraphStorage {
                         await this.__initDatabase__();
                         resolve(this.db);
                     } catch (error) {
-                        console.log(error);
                         reject(Error('Unable to connect to graph database'));
                     }
                     break;
@@ -223,8 +222,8 @@ class GraphStorage {
      * @param document
      * @param importNumber
      */
-    updateImports(collectionName, document, importNumber) {
-        return this.db.updateImports(collectionName, document, importNumber);
+    updateImports(collectionName, documentKeys, importNumber) {
+        return this.db.updateImports(collectionName, documentKeys, importNumber);
     }
 
     /**

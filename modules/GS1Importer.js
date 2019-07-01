@@ -821,15 +821,21 @@ class GS1Importer {
             await Promise.all(newDenormalizedEdges
                 .map(edge => this.db.addEdge(edge, importedEdges)));
 
+            const vKeys = newDenormalizedVertices.map(vertex => vertex._key);
+            const eKeys = newDenormalizedEdges.map(edge => edge._key);
+
             // updates
-            await Promise.all(updates);
-            await Promise.all(newDenormalizedVertices.map(vertex => this.db.updateImports('ot_vertices', vertex._key, dataSetId)));
-            await Promise.all(newDenormalizedEdges.map((edge) => {
-                if (edge.edge_type !== 'EVENT_CONNECTION') {
-                    return this.db.updateImports('ot_edges', edge._key, dataSetId);
-                }
-                return [];
-            }));
+            await this.db.updateImports('ot_vertices', vKeys, dataSetId);
+            await this.db.updateImports('ot_edges', eKeys, dataSetId);
+
+            // await Promise.all(updates);
+            // await Promise.all(newDenormalizedVertices.map(vertex => this.db.updateImports('ot_vertices', vertex._key, dataSetId)));
+            // await Promise.all(newDenormalizedEdges.map((edge) => {
+            //     if (edge.edge_type !== 'EVENT_CONNECTION') {
+            //         return this.db.updateImports('ot_edges', edge._key, dataSetId);
+            //     }
+            //     return [];
+            // }));
 
             await this.db.commit();
 

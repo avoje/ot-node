@@ -324,21 +324,14 @@ class ArangoJS {
         };
     }
 
-    async updateImports(collectionName, document, importNumber) {
-        const result = await this.getDocument(collectionName, document);
-        let new_imports = [];
-        if (result.datasets !== undefined) {
-            new_imports = result.datasets;
+    async updateImports(collectionName, documentKeys, importNumber) {
+        const query = `FOR v in ${collectionName} FILTER v._key in @keys UPDATE v WITH { datasets : APPEND(v.datasets || [], @dataset, true)} IN ${collectionName}`;
+        const params = {
+            dataset: importNumber,
+            keys: documentKeys,
+        };
 
-            if (new_imports.includes(importNumber)) {
-                return result;
-            }
-        }
-
-        new_imports.push(importNumber);
-
-        result.datasets = new_imports;
-        return this.updateDocument(collectionName, result);
+        await this.runQuery(query, params);
     }
 
     /**

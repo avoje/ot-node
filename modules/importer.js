@@ -141,15 +141,28 @@ class Importer {
 
         if (encColor == null) {
             // it's encrypted
-            await Promise.all(vertices
+            const vKeys = vertices
                 .filter(vertex => vertex.vertex_type !== 'CLASS')
-                .map(vertex => this.graphStorage.updateImports('ot_vertices', vertex, dataSetId))
-                .concat(edges.map(edge => this.graphStorage.updateImports('ot_edges', edge, dataSetId))));
+                .map(vertex => vertex._key);
+
+            const eKeys = edges
+                .filter(edge => edge.vertex_type !== 'CLASS')
+                .map(edge => edge._key);
+
+            await this.graphStorage.updateImports('ot_vertices', vKeys, dataSetId);
+            await this.graphStorage.updateImports('ot_edges', eKeys, dataSetId);
         } else {
             // not encrypted
-            await Promise.all(vertices
-                .map(vertex => this.graphStorage.updateImports('ot_vertices', vertex, dataSetId))
-                .concat(edges.map(edge => this.graphStorage.updateImports('ot_edges', edge, dataSetId))));
+            const vKeys = vertices
+                .filter(vertex => vertex.vertex_type !== 'CLASS')
+                .map(vertex => vertex._key);
+
+            const eKeys = edges
+                .filter(edge => edge.vertex_type !== 'CLASS')
+                .map(edge => edge._key);
+
+            await this.graphStorage.updateImports('ot_vertices', vKeys, dataSetId);
+            await this.graphStorage.updateImports('ot_edges', eKeys, dataSetId);
         }
         this.log.info('JSON import complete');
 

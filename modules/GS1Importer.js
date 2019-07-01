@@ -806,12 +806,20 @@ class GS1Importer {
                 v.inTransaction = true;
                 return v;
             });
-            await Promise.all(newDenormalizedVertices.map(vertex => this.db.addVertex(vertex)));
+
+            const importedVertices = await this.db.findAllDocuments('ot_vertices', newDenormalizedVertices.map(el => el._key));
+
+            await Promise.all(newDenormalizedVertices
+                .map(vertex => this.db.addVertex(vertex, importedVertices)));
             newDenormalizedEdges.map((e) => {
                 e.inTransaction = true;
                 return e;
             });
-            await Promise.all(newDenormalizedEdges.map(edge => this.db.addEdge(edge)));
+
+            const importedEdges = await this.db.findAllDocuments('ot_edges', newDenormalizedEdges.map(el => el._key));
+
+            await Promise.all(newDenormalizedEdges
+                .map(edge => this.db.addEdge(edge, importedEdges)));
 
             // updates
             await Promise.all(updates);

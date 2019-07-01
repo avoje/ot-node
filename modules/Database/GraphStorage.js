@@ -39,6 +39,7 @@ class GraphStorage {
                         await this.__initDatabase__();
                         resolve(this.db);
                     } catch (error) {
+                        console.log(error);
                         reject(Error('Unable to connect to graph database'));
                     }
                     break;
@@ -143,12 +144,12 @@ class GraphStorage {
      * @param vertex Vertex data
      * @returns {Promise<any>}
      */
-    addVertex(vertex) {
+    addVertex(vertex, importedVertices = []) {
         return new Promise((resolve, reject) => {
             if (!this.db) {
                 reject(Error('Not connected to graph database'));
             } else {
-                this.db.addVertex(vertex).then((result) => {
+                this.db.addVertex(vertex, importedVertices).then((result) => {
                     resolve(result);
                 }).catch((err) => {
                     reject(err);
@@ -162,18 +163,22 @@ class GraphStorage {
      * @param edge Edge data
      * @returns {Promise<any>}
      */
-    addEdge(edge) {
+    addEdge(edge, importedEdges = []) {
         return new Promise((resolve, reject) => {
             if (!this.db) {
                 reject(Error('Not connected to graph database'));
             } else {
-                this.db.addEdge(edge).then((result) => {
+                this.db.addEdge(edge, importedEdges).then((result) => {
                     resolve(result);
                 }).catch((err) => {
                     reject(err);
                 });
             }
         });
+    }
+
+    async findAllDocuments(collection, keys) {
+        return this.db.findAllDocuments(collection, keys);
     }
 
     /**

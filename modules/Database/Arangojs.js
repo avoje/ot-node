@@ -31,10 +31,14 @@ class ArangoJS {
         await this.createCollection('ot_vertices');
         await this.createEdgeCollection('ot_edges');
 
-        await Promise.all(allowedClasses.map(className => this.addVertex({
-            _key: className,
-            vertex_type: 'CLASS',
-        })));
+        const importedVertices = await this.findAllDocuments('ot_vertices', allowedClasses);
+        await Promise.all(allowedClasses.map(className => this.addVertex(
+            {
+                _key: className,
+                vertex_type: 'CLASS',
+            },
+            importedVertices,
+        )));
     }
 
     /**
@@ -510,8 +514,8 @@ class ArangoJS {
      * @param {vertex} - document
      * @returns {Promise<any>}
      */
-    async addVertex(vertex) {
-        return this.addDocument('ot_vertices', vertex);
+    async addVertex(vertex, importedVertices = []) {
+        return this.addDocument('ot_vertices', vertex, importedVertices);
     }
 
     /**
@@ -519,11 +523,19 @@ class ArangoJS {
      * @param {vertex} - document
      * @returns {Promise<any>}
      */
-    async addEdge(edge) {
+    async addEdge(edge, importedEdges = []) {
         const _edge = Utilities.copyObject(edge);
         _edge._from = `ot_vertices/${edge._from}`;
         _edge._to = `ot_vertices/${edge._to}`;
-        return this.addDocument('ot_edges', _edge);
+        return this.addDocument('ot_edges', _edge, importedEdges);
+    }
+
+    async findAllDocuments(collection, keys) {
+        const query = `FOR v in ${collection}
+                       FILTER v._key IN @keys
+                       RETURN v`;
+        const params = { keys };
+        return this.runQuery(query, params);
     }
 
     /**
@@ -532,15 +544,16 @@ class ArangoJS {
      * @param {object} - document
      * @returns {Promise<any>}
      */
-    async addDocument(collectionName, document) {
+    async addDocument(collectionName, document, importedDocuments = []) {
         if (document === undefined || document === null) { throw Error('ArangoError: invalid document type'); }
         if (collectionName === undefined || collectionName === null) { throw Error('ArangoError: invalid collection type'); }
 
         const collection = this.db.collection(collectionName);
         if (document._key) {
-            const response = await this.findDocuments(collectionName, { _key: document._key });
-            if (response.length > 0) {
-                const existing = ArangoJS._normalize(response[0]);
+            // const response = await this.findDocuments(collectionName, { _key: document._key });
+            const response = importedDocuments.find(el => el._key === document._key);
+            if (response != null) {
+                const existing = ArangoJS._normalize(response);
                 Object.assign(existing, document);
                 return this.updateDocument(collectionName, existing);
             }

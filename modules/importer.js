@@ -107,13 +107,18 @@ class Importer {
             ImportUtilities.packKeys(vertices, edges, encColor);
         }
 
+        const importedVertices = await this.graphStorage.findAllDocuments('ot_vertices', vertices.map(el => el._key));
+
         vertices = await Promise.all(vertices.map(async (vertex) => {
-            const inserted = await this.graphStorage.addVertex(vertex);
+            const inserted = await this.graphStorage.addVertex(vertex, importedVertices);
             vertex._key = inserted._key;
             return vertex;
         }));
+
+        const importedEdges = await this.graphStorage.findAllDocuments('ot_edges', edges.map(el => el._key));
+
         edges = await Promise.all(edges.map(async (edge) => {
-            const inserted = await this.graphStorage.addEdge(edge);
+            const inserted = await this.graphStorage.addEdge(edge, importedEdges);
             edge._key = inserted._key;
             return edge;
         }));
@@ -124,9 +129,15 @@ class Importer {
             edges,
         ).vertices;
 
+        const importedDenormalizedVertices = await this.graphStorage.findAllDocuments('ot_vertices', denormalizedVertices.map(el => el._key));
+        const importedDenormalizedEdges = await this.graphStorage.findAllDocuments('ot_edges', edges.map(el => el._key));
+
         // TODO: Use transaction here.
-        await Promise.all(denormalizedVertices.map(vertex => this.graphStorage.addVertex(vertex))
-            .concat(edges.map(edge => this.graphStorage.addEdge(edge))));
+        await Promise
+            .all(denormalizedVertices
+                .map(vertex => this.graphStorage.addVertex(vertex, importedDenormalizedVertices))
+                .concat(edges
+                    .map(edge => this.graphStorage.addEdge(edge, importedDenormalizedEdges))));
 
         if (encColor == null) {
             // it's encrypted
